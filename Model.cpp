@@ -5,34 +5,22 @@
 #include <vector>
 #include "Model.h"
 
-Model::Model(std::string filename) : verts_(), faces_(), norms_(), uv_() {
-    std::ifstream in;
+Model::Model(std::string filename) : verts_(), faces_(){
+    std::ifstream in; // Открываем файл
     in.open(filename, std::ifstream::in);
     if (in.fail()) return;
     std::string line;
     while (!in.eof()) {
-        std::getline(in, line);
+        std::getline(in, line); // Берем строку
         std::istringstream iss(line.c_str());
         char trash;
-        if (!line.compare(0, 2, "v ")) {
+        if (!line.compare(0, 2, "v ")) { // Если вершина
             iss >> trash;
             Vec3f v;
             for (int i = 0; i < 3; i++) iss >> v[i];
-            verts_.push_back(v);
+            verts_.push_back(v); // Пушим
         }
-        else if (!line.compare(0, 3, "vn ")) {
-            iss >> trash >> trash;
-            Vec3f n;
-            for (int i = 0; i < 3; i++) iss >> n[i];
-            norms_.push_back(n);
-        }
-        else if (!line.compare(0, 3, "vt ")) {
-            iss >> trash >> trash;
-            Vec2f uv;
-            for (int i = 0; i < 2; i++) iss >> uv[i];
-            uv_.push_back(uv);
-        }
-        else if (!line.compare(0, 2, "f ")) {
+        else if (!line.compare(0, 2, "f ")) { // Если грань
             int f, t, n;
             std::vector<Vec3i> f0;
             iss >> trash;
@@ -40,26 +28,21 @@ Model::Model(std::string filename) : verts_(), faces_(), norms_(), uv_() {
             while (iss >> f >> trash >> t >> trash >> n) {
                 Vec3i f1;
                 f1.x = --f;
-                f0.push_back(f1);
+                f0.push_back(f1); // Пушим
                 cnt++;
             }
             if (3 != cnt) {
-                std::cerr << "ОШИБКА НАХУЙ!" << std::endl;
+                std::cerr << "ОШИБКА НАХУЙ! Триангулируй obj!" << std::endl;
                 return;
             }
-            faces_.push_back(f0);
+            faces_.push_back(f0); // Пушим
         }
     }
 
-    std::cerr << "Вертексы# " << verts_.size() << " Фейсы# " << faces_.size() << norms_.size() << std::endl;
+    std::cerr << "Вертексы# " << verts_.size() << " Фейсы# " << faces_.size() << std::endl; // Для отладки
 }
 
 Model::~Model() {
-}
-
-Vec2i Model::uv(int iface, int nvert) {
-    int idx = faces_[iface][nvert][1];
-    return Vec2i(uv_[idx].x * diffusemap_.get_width(), uv_[idx].y * diffusemap_.get_height());
 }
 
 int Model::vertsSize() { // Размер вектора
@@ -70,7 +53,7 @@ int Model::facesSize() { // Тоже самое
     return (int)faces_.size();
 }
 
-std::vector<int> Model::Getface(int idx) {
+std::vector<int> Model::Getface(int idx) { // Получаем значения
     std::vector<int> face;
     for (int i = 0; i < (int)faces_[idx].size(); i++) face.push_back(faces_[idx][i][0]);
     return face;

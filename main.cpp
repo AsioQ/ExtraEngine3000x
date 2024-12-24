@@ -1,4 +1,4 @@
-#include "geometry.h"
+#include "geometry.h" // Все необходимое
 #include <iostream>
 #include <vector>
 #include <cmath>
@@ -8,23 +8,24 @@
 #include <string>
 using namespace std;
 
-Vec3f eye(2, 0, 10);
-Vec3f center(0, 0, 3);
-Vec3f camera(0, 0, 10);
-int* zbuffer = NULL;
-const int depth = 255;
-const Vec3f light_dir(0, 0, -1);
-const int width = 800;
-const int height = 800;
+Vec3f eye(2, 0, 10); // Камера
+Vec3f center(0, 0, 3); // Куда смотрит камера
+Vec3f camera(0, 0, 10); // z расстояние камеры
+int* zbuffer = NULL; 
+const int depth = 255; // Глубина z-buffer 
+const Vec3f light_dir(0, 0, -1); // Свет
+int width = 800;
+int height = 800;
 const TGAColor white = TGAColor(255, 255, 255, 255);
 const TGAColor red   = TGAColor(255, 0,   0,   255);
 const TGAColor green = TGAColor(0, 255, 0, 255);
 const TGAColor blue = TGAColor(0, 0, 255, 255);
 
-Vec3f m2v(Matrix m) {
+// Переход между матрицей и вектором и наоборот
+Vec3f matrix2v(Matrix m) {
     return Vec3f(m[0][0] / m[3][0], m[1][0] / m[3][0], m[2][0] / m[3][0]);
-}
-Matrix v2m(Vec3f v) {
+} 
+Matrix vector2m(Vec3f v) {
     Matrix m(4, 1);
     m[0][0] = v.x;
     m[1][0] = v.y;
@@ -32,7 +33,9 @@ Matrix v2m(Vec3f v) {
     m[3][0] = 1.f;
     return m;
 }
-Matrix viewport(int x, int y, int w, int h) {
+
+// Для перемещения камеры
+Matrix viewportMatrix(int x, int y, int w, int h) {
     Matrix m = Matrix::identity(4);
     m[0][3] = x + w / 2.f;
     m[1][3] = y + h / 2.f;
@@ -43,8 +46,7 @@ Matrix viewport(int x, int y, int w, int h) {
     m[2][2] = depth / 2.f;
     return m;
 }
-
-Matrix lookat(Vec3f eye, Vec3f center, Vec3f up) {
+Matrix glalookat(Vec3f eye, Vec3f center, Vec3f up) {
     Vec3f z = (eye - center).normalize();
     Vec3f x = (up ^ z).normalize();
     Vec3f y = (z ^ x).normalize();
@@ -58,6 +60,7 @@ Matrix lookat(Vec3f eye, Vec3f center, Vec3f up) {
     return res;
 }
 
+// Растеризация треугольника
 void triangle(Vec3i t0, Vec3i t1, Vec3i t2, TGAImage& image, TGAColor color, int* zbuffer) {
     if (t0.y > t1.y) std::swap(t0, t1);
     if (t0.y > t2.y) std::swap(t0, t2);
@@ -115,58 +118,64 @@ int main() {
     cout << endl << "Парсим..." << endl;
     Model model(name); // Парсим нашу модельку
 
-    zbuffer = new int[width * height];
+    string a;
+    cout << "Напиши 0 для стандартных значений: ";
+    cin >> a;
+    if (a != "0") {
+        cout << "eye(Координаты камеры)(По умолчанию (2, 0, 10)): ";
+        cin >> eye.x >> eye.y >> eye.z;
+        cout << endl;
+        cout << "center(Куда смотрит камера)(По умолчанию (0, 0, 3)): ";
+        cin >> center.x >> center.y >> center.z;
+        cout << endl;
+        cout << "camera(z координата камеры для перспективы)(По умолчанию 10): ";
+        cin >> camera.z;
+        cout << endl;
+        cout << "width(Изображения)(По умолчанию 800): ";
+        cin >> width;
+        cout << endl;
+        cout << "height(Изображения)(По умолчанию 800): ";
+        cin >> height;
+        cout << endl;
+    }
+
+    zbuffer = new int[width * height]; // Инициализируем z-buffer
 
     for (int i = 0; i < width * height; i++) {
         zbuffer[i] = std::numeric_limits<int>::min();
     }
 
-    string a;
-    cout << "Напиши 0 для стандартных значений: ";
-    cin >> a;
-    if (a != "0") {
-        cout << "eye: ";
-        cin >> eye.x >> eye.y >> eye.z;
-        cout << endl;
-        cout << "center: ";
-        cin >> center.x >> center.y >> center.z;
-        cout << endl;
-        cout << "camera: ";
-        cin >> camera.x >> camera.y >> camera.z;
-        cout << endl;
-    }
-
-    Matrix ModelView = lookat(eye, center, Vec3f(0, 1, 0));
+    // Все матрицы преоразования(Для поворота и перемещения камеры)
+    Matrix ModelView = glalookat(eye, center, Vec3f(0, 1, 0));
     Matrix Projection = Matrix::identity(4);
-    Matrix ViewPort = viewport(width / 8, height / 8, width * 3 / 4, height * 3 / 4);
-    Projection[3][2] = -1.f / camera.z;
-    Matrix z = (ViewPort * Projection * ModelView);
+    Matrix ViewPort = viewportMatrix(width / 8, height / 8, width * 3 / 4, height * 3 / 4);
+    Projection[3][2] = -1.f / camera.z; // Перспективная проекция
 
     cout << "Создание изображения..." << endl;
 
     TGAImage image(width, height, TGAImage::RGB);
 
-    for (int i = 0; i < model.facesSize(); i++) {
+    for (int i = 0; i < model.facesSize(); i++) { // Проходимся по полигонам
         std::vector<int> face = model.Getface(i);
-        Vec3i screen_coords[3];
-        Vec3f world_coords[3];
-        for (int j = 0; j < 3; j++) {
+        Vec3i screen_coords[3]; // Экранные координаты
+        Vec3f world_coords[3]; // Мировые координаты
+        for (int j = 0; j < 3; j++) { // Работаем с полигоном
             Vec3f v = model.Getvert(face[j]);
-            Vec3f v2 = m2v(ViewPort * Projection * ModelView * v2m(v));
-            screen_coords[j] = Vec3i(int(v2.x+.5), int(v2.y+.5), int(v2.z+.5));
+            Vec3f v2 = matrix2v(ViewPort * Projection * ModelView * vector2m(v)); // Умножаем на матрицы преобразований
+            screen_coords[j] = Vec3i(int(v2.x+.5), int(v2.y+.5), int(v2.z+.5)); // Переводим в экранные координаты
             world_coords[j] = v;
         }
-        Vec3f n = (world_coords[2] - world_coords[0]) ^ (world_coords[1] - world_coords[0]);
+        Vec3f n = (world_coords[2] - world_coords[0]) ^ (world_coords[1] - world_coords[0]); // Нормаль
         n.normalize();
-        float intensity = n * light_dir;
+        float intensity = n * light_dir; // Считаем свет
         if (intensity > 0) {
             triangle(screen_coords[0], screen_coords[1], screen_coords[2], image, TGAColor(intensity * 255, intensity * 255, intensity * 255, 255), zbuffer);
-        }
+        } // Наконец рисуем. Ура!
     }
 
-    cout << "Готово!" << endl;
+    cout << "Готово!" << endl; // Победа
 
     image.flip_vertically(); 
-    image.write_tga_file("output.tga");
+    image.write_tga_file("Render.tga");
     return 0;
 }
